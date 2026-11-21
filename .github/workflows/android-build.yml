@@ -24,32 +24,35 @@ jobs:
         with:
           packages: 'platform-tools'
 
-      - name: Install SDK packages
-        run: sdkmanager "platforms;android-36" "build-tools;36.0.0"
-
-      - name: Locate project and build
-        shell: bash
+      - name: Extract project
         run: |
-          echo "Procurando Gradle Wrapper..."
-          find . -name gradlew -type f
-          WRAPPER=$(find . -name gradlew -type f -print -quit)
-
-          if [ -z "$WRAPPER" ]; then
-            echo "ERRO: gradlew não encontrado."
+          ZIP=$(find . -maxdepth 1 -type f -iname '*.zip' -print -quit)
+          if [ -z "$ZIP" ]; then
+            echo "ZIP do projeto não encontrado na raiz."
             exit 1
           fi
+          mkdir -p extracted
+          unzip -q "$ZIP" -d extracted
+          WRAPPER=$(find extracted -name gradlew -type f -print -quit)
+          if [ -z "$WRAPPER" ]; then
+            echo "gradlew não encontrado dentro do ZIP."
+            exit 1
+          fi
+          echo "PROJECT_DIR=$(dirname "$WRAPPER")" >> "$GITHUB_ENV"
 
-          PROJECT_DIR=$(dirname "$WRAPPER")
-          echo "Projeto encontrado em: $PROJECT_DIR"
+      - name: Install Android SDK packages
+        run: sdkmanager "platforms;android-36" "build-tools;36.0.0"
 
+      - name: Build APK
+        run: |
           cd "$PROJECT_DIR"
           chmod +x gradlew
-          ./gradlew --no-daemon assembleRelease
+          ./gradlew --no-daemon :app:assembleRelease
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: RZ-CLIENT-APK
-          path: '**/build/outputs/apk/release/*.apk'
+          path: extracted/**/build/outputs/apk/release/*.apk
           if-no-files-found: error
           

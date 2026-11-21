@@ -13,7 +13,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Java
+      - name: Install Java 8
+        id: java8
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '8'
+
+      - name: Install Java 17
+        id: java17
         uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -28,14 +36,14 @@ jobs:
         run: |
           ZIP=$(find . -maxdepth 1 -type f -iname '*.zip' -print -quit)
           if [ -z "$ZIP" ]; then
-            echo "ZIP do projeto não encontrado na raiz."
+            echo "ZIP do projeto não encontrado."
             exit 1
           fi
           mkdir -p extracted
           unzip -q "$ZIP" -d extracted
           WRAPPER=$(find extracted -name gradlew -type f -print -quit)
           if [ -z "$WRAPPER" ]; then
-            echo "gradlew não encontrado dentro do ZIP."
+            echo "gradlew não encontrado."
             exit 1
           fi
           echo "PROJECT_DIR=$(dirname "$WRAPPER")" >> "$GITHUB_ENV"
@@ -47,7 +55,9 @@ jobs:
         run: |
           cd "$PROJECT_DIR"
           chmod +x gradlew
-          ./gradlew --no-daemon :app:assembleRelease
+          ./gradlew \
+            -Dorg.gradle.java.installations.paths="${{ steps.java8.outputs.path }},${{ steps.java17.outputs.path }}" \
+            --no-daemon :app:assembleRelease
 
       - name: Upload APK
         uses: actions/upload-artifact@v4

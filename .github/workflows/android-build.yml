@@ -13,7 +13,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Java 17
+      - name: Set up Java
         uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -24,18 +24,32 @@ jobs:
         with:
           packages: 'platform-tools'
 
-      - name: Install Android SDK packages
+      - name: Install SDK packages
         run: sdkmanager "platforms;android-36" "build-tools;36.0.0"
 
-      - name: Build APK
-        working-directory: WClient-WClientv39.0
+      - name: Locate project and build
+        shell: bash
         run: |
+          echo "Procurando Gradle Wrapper..."
+          find . -name gradlew -type f
+          WRAPPER=$(find . -name gradlew -type f -print -quit)
+
+          if [ -z "$WRAPPER" ]; then
+            echo "ERRO: gradlew não encontrado."
+            exit 1
+          fi
+
+          PROJECT_DIR=$(dirname "$WRAPPER")
+          echo "Projeto encontrado em: $PROJECT_DIR"
+
+          cd "$PROJECT_DIR"
           chmod +x gradlew
-          ./gradlew --no-daemon :app:assembleRelease
+          ./gradlew --no-daemon assembleRelease
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: RZ-CLIENT-APK
-          path: WClient-WClientv39.0/app/build/outputs/apk/release/*.apk
+          path: '**/build/outputs/apk/release/*.apk'
+          if-no-files-found: error
           
